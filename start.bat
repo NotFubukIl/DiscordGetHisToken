@@ -1,4 +1,4 @@
 @echo off
 cls
-node index
+node gettoken.js
 pause
