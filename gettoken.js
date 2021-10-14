@@ -1,61 +1,43 @@
-const question = require("readline-sync")
-const request = require("sync-request")
-require('colors')
-
-const email = question.question(`Veuillez Entrer Votre Email: `.yellow)
-const password = question.question(`Veuillez Entrer Votre Mot De Passe: `.yellow)
-
+const rs = require("readline-sync")
+const fetch = require("node-fetch")
 console.clear()
-
-let req = JSON.parse(request("POST", 'https://discord.com/api/v8/auth/login', {
-    json: {
-        "email": email,
-        "password": password
+const email = rs.question("\x1B[32mEnter Your EMAIL: \x1B[0m", {
+    hideEchoBack: true
+})
+const password = rs.question("\x1B[34mEnter Your PASSWORD: \x1B[0m", {
+    hideEchoBack: true
+})
+console.clear()
+fetch("https://discord.com/api/v9/auth/login", {
+    method: "POST",
+    body: JSON.stringify({
+        email: email,
+        password: password
+    }),
+    headers: {
+        "content-type": "application/json"
     }
-}).body)
-if (req.code === 50035) {
-
-    console.clear();
-    console.log("Email Ou Mot De Passe Invalide".red)
-
-} else {
-    if (req.captcha_key) {
-
+}).then(res => res.json()).then(r => {
+    if (r.code == 50035) console.error("\x1B[91mEmail Or Password INVALID\x1B[0m")
+    else if (r.captcha_key[0] == "captcha-required") console.error("\x1B[91mUnfortunately I Can't Give You Your Token Because There Is A Captcha To Do.\x1B[0m")
+    else if (r.ticket) mfa()
+    else console.log(`\x1B[34There Is Your Token: ${r.token}\x1B[0m`)
+    function mfa() {
         console.clear()
-        console.log("Impossible De Vous Donnez Votre Token".red)
-
-    } else {
-
-        if (req.ticket) {
-            console.clear()
-            deuxfa0()
-
-        } else {
-
-            console.clear()
-            console.log(`Voici ton token: ${req.token}`.green)
-
-        }
+        var code = rs.question("\x1B[32mInput Your MFA Code: \x1B[0m")
+        fetch("https://discord.com/api/v9/auth/mfa/totp", {
+            method: 'POST',
+            headers: {
+                "content-type": "application/json"
+            },
+            body: JSON.stringify({
+                code: code,
+                ticket: r.ticket
+            })
+        }).then(resp => resp.json()).then(rs => {
+            if (rs.message) console.log("\x1B[91mMFA CODE INVALID\x1B[0m"), mfa()
+            else console.log(`\x1B[34There Is Your Token: ${r.token}\x1B[0m`)
+        })
     }
-}
-function deuxfa0() {
+})
 
-    const deuxfa = question.question(`Veuillez Entrer Le Code De Doubles Vérifications: `.cyan)
-
-    let res = JSON.parse(request("POST", 'https://discord.com/api/v8/auth/mfa/totp', {
-        json: {
-            "code": deuxfa,
-            "ticket": req.ticket
-        }
-    }).body)
-
-    if (res.message) {
-        console.clear()
-        console.log(`Le Code A2F est Invalide`.red)
-        deuxfa0()
-
-    } else {
-        console.clear();
-        console.log(`Voici ton token: ${res.token}`.green)
-    }
-}
